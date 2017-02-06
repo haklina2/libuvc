@@ -803,6 +803,7 @@ uvc_error_t uvc_stream_start(
     void *user_ptr,
     uint8_t flags
 ) {
+
   /* USB interface we'll be using */
   const struct libusb_interface *interface;
   int interface_id;
@@ -815,7 +816,10 @@ uvc_error_t uvc_stream_start(
   size_t total_transfer_size;
   struct libusb_transfer *transfer;
   int transfer_id;
-
+	struct libusb_device_descriptor usb_desc;
+	
+	libusb_get_device_descriptor(libusb_get_device(strmh->devh->usb_devh), &usb_desc);
+	
   ctrl = &strmh->cur_ctrl;
 
   UVC_ENTER();
@@ -875,16 +879,24 @@ uvc_error_t uvc_stream_start(
     for (alt_idx = 0; alt_idx < interface->num_altsetting; alt_idx++) {
       altsetting = interface->altsetting + alt_idx;
       endpoint_bytes_per_packet = 0;
+			size_t max_packets_per_transfer = 32;
 
       /* Find the endpoint with the number specified in the VS header */
       for (ep_idx = 0; ep_idx < altsetting->bNumEndpoints; ep_idx++) {
         endpoint = altsetting->endpoint + ep_idx;
 
         if (endpoint->bEndpointAddress == format_desc->parent->bEndpointAddress) {
-          endpoint_bytes_per_packet = endpoint->wMaxPacketSize;
-          // wMaxPacketSize: [unused:2 (multiplier-1):3 size:11]
-          endpoint_bytes_per_packet = (endpoint_bytes_per_packet & 0x07ff) *
-                                      (((endpoint_bytes_per_packet >> 11) & 3) + 1);
+					if (usb_desc.idVendor == 0x2833 && usb_desc.idProduct == 0x0211) {
+						endpoint_bytes_per_packet = endpoint->wMaxPacketSize > 0 ? 8192 : 0;
+						max_packets_per_transfer = 16;
+					}
+					else {
+	          endpoint_bytes_per_packet = endpoint->wMaxPacketSize;
+
+						// wMaxPacketSize: [unused:2 (multiplier-1):3 size:11]
+						endpoint_bytes_per_packet = (endpoint_bytes_per_packet & 0x07ff) *
+							(((endpoint_bytes_per_packet >> 11) & 3) + 1);
+					}
           break;
         }
       }
@@ -896,8 +908,8 @@ uvc_error_t uvc_stream_start(
                                 endpoint_bytes_per_packet - 1) / endpoint_bytes_per_packet;
 
         /* But keep a reasonable limit: Otherwise we start dropping data */
-        if (packets_per_transfer > 32)
-          packets_per_transfer = 32;
+        if (packets_per_transfer > max_packets_per_transfer)
+          packets_per_transfer = max_packets_per_transfer;
         
         total_transfer_size = packets_per_transfer * endpoint_bytes_per_packet;
         break;

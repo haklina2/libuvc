@@ -612,6 +612,8 @@ uvc_error_t uvc_get_device_list(
     // Special case for Imaging Source cameras
     if ( 0x199e == desc.idVendor && 0x8101 == desc.idProduct ) {
       got_interface = 1;
+		} else if( 0x2833 == desc.idVendor && 0x0211 == desc.idProduct ) {
+			got_interface = 1;
     } else {
 
       for (interface_idx = 0;
@@ -931,6 +933,9 @@ uvc_error_t uvc_scan_control(uvc_device_t *dev, uvc_device_info_t *info) {
       if ( dev_desc->idVendor == 0x199e && dev_desc->idProduct == 0x8101 ) {
         haveTISCamera = 1;
       }
+			else if ( dev_desc->idVendor == 0x2833 && dev_desc->idProduct == 0x0211 ) {
+				haveTISCamera = 1;
+			}
       uvc_free_device_descriptor ( dev_desc );
       if ( haveTISCamera ) {
         break;
