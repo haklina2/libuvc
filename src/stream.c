@@ -816,9 +816,10 @@ uvc_error_t uvc_stream_start(
   size_t total_transfer_size;
   struct libusb_transfer *transfer;
   int transfer_id;
-	struct libusb_device_descriptor usb_desc;
+	uvc_device_descriptor_t *usb_desc;
 	
-	libusb_get_device_descriptor(libusb_get_device(strmh->devh->usb_devh), &usb_desc);
+	usb_desc = NULL;
+	uvc_get_device_descriptor(strmh->devh->dev, &usb_desc);
 	
   ctrl = &strmh->cur_ctrl;
 
@@ -886,7 +887,7 @@ uvc_error_t uvc_stream_start(
         endpoint = altsetting->endpoint + ep_idx;
 
         if (endpoint->bEndpointAddress == format_desc->parent->bEndpointAddress) {
-					if (usb_desc.idVendor == 0x2833 && usb_desc.idProduct == 0x0211) {
+					if (usb_desc && usb_desc->idVendor == 0x2833 && usb_desc->idProduct == 0x0211) {
 						endpoint_bytes_per_packet = endpoint->wMaxPacketSize > 0 ? 8192 : 0;
 						max_packets_per_transfer = 16;
 					}
